@@ -1,0 +1,123 @@
+import uuid
+import json
+
+# Other things to add: 
+#   - if point comes in a single list, make into list of list
+#   - error handling for empty lists/objects
+
+def lambda_handler(event, context):
+    bucket = 'geovect-vectors'
+    upload = {}
+    try:
+        try:
+            upload['geometry'] = str(event['queryStringParameters']['geometry']).lower()
+            upload['coordinates'] = event['queryStringParameters']['coordinates']
+            json_loaded = json.loads(upload['coordinates'])
+            if type(json_loaded) != type([]):
+                print("Error 307: Not valid Coordinates")
+                return "Error 307: Not valid Coordinates"
+            else: 
+                upload['coordinates'] = json_loaded
+                
+        except Exception as e:
+            print(e)
+            print("Error 303: Missing Arugments")
+            return "Error 303: Missing Arugments"
+        #print(upload['coordinates'])
+        #print(len(upload['coordinates']))
+        if (type(upload['coordinates'][0]) != list):
+            upload['coordinates'] = [upload['coordinates']]
+        if upload['geometry'] not in ['polygon', 'line', 'point']:
+            print("Error 301: Not a valid geometry type")
+            return "Error 301: Not a valid geometry type"
+        elif (upload['geometry'] == 'polygon') and (upload['coordinates'][0] != upload['coordinates'][-1]):
+            print("Error 302: Polygon doesn't close")
+            return "Error 302: Polygon doesn't close"
+        elif (upload['geometry'] == 'point') and (len(upload['coordinates']) > 1) and (type(upload['coordinates'][0]) == list):
+            #print(upload['coordinates'])
+            print("Error 304: Not a valid point. Must consist of a single point")
+            return "Error 304: Not a valid point. Must consist of a single point"
+        elif (upload['geometry'] == 'line') and (len(upload['coordinates']) == 1):
+            print("Error 305: Not a valid line. Must consist of more than one point")
+            return "Error 305: Not a valid line. Must consist of more than one point"
+        elif (upload['geometry'] == 'polygon') and (len(upload['coordinates']) < 3):
+            print("Error 306: Not enough polygon points")
+            return "Error 306: Not enough polygon points"
+        else:
+            floats = True
+            doubles = True
+            if type(upload['coordinates'][0]) == list:
+                for x in upload['coordinates']:
+                    if len(x) != 2:
+                        doulbes = False
+                        break
+                    for y in x:
+                        if (not isinstance(y, float)) and (not isinstance(y, int)):
+                            floats = False
+                            break
+            else:
+                for y in upload['coordinates']:
+                     if (not isinstance(y, float)) and (not isinstance(y, int)):
+                            floats = False
+                            break
+            if not floats:
+                print("Error 308: Not valid coordinate input characters. Must be Floats or Integers.")
+                return "Error 308: Not valid coordinate input characters. Must be Floats or Integers."
+            if not doubles:
+                print("Error 310: Not valid X, Y pairs. Requires a pair for each point.")
+                return "Error 310: Not valid X, Y pairs. Requires a pair for each point."
+
+        file_id = uuid.uuid4()
+        fileName = str(file_id) + '.json'
+        #uploadByteStream = bytes(json.dumps(upload).encode('UTF-8'))
+        #s3.put_object(Bucket=bucket, Key=fileName, Body=uploadByteStream)
+        ret_msg = f"Vector successfully uploaded. Pipeline ID: {str(file_id)}"
+        print(ret_msg)
+        return ret_msg
+    except Exception as e:
+        print(e)
+        return e
+
+lambda_handler({'version': '2.0', 'routeKey': 'POST /storePoly', 'rawPath': '/storePoly', 'rawQueryString': 'geometry=Polygon&coordinates=[[-80.55999755859375,%2043.5326204268101],[-80.66162109375,43.37910133500264],[-80.3924560546875,43.32517767999296],[-80.3704833984375,43.50075243569041],[-80.55999755859375,43.5326204268101]]', 'headers': {'accept': '*/*', 'accept-encoding': 'gzip, deflate, br', 'cache-control': 'no-cache', 'content-length': '0', 'host': '9eplbc3aqh.execute-api.us-east-2.amazonaws.com', 'postman-token': '2fa4013e-e1d0-4932-895a-f58b77051e08', 'user-agent': 'PostmanRuntime/7.29.0', 'x-amzn-trace-id': 'Root=1-6275631e-03f4f32c30096e471fac2de8', 'x-forwarded-for': '54.86.50.139', 'x-forwarded-port': '443', 'x-forwarded-proto': 'https'}, 'queryStringParameters': {'coordinates': '[[-80.55999755859375, 43.5326204268101],[-80.66162109375,43.37910133500264],[-80.3924560546875,43.32517767999296],[-80.3704833984375,43.50075243569041],[-80.55999755859375,43.5326204268101]]', 'geometry': 'Polygon'}, 'requestContext': {'accountId': '786576414114', 'apiId': '9eplbc3aqh', 'domainName': '9eplbc3aqh.execute-api.us-east-2.amazonaws.com', 'domainPrefix': '9eplbc3aqh', 'http': {'method': 'POST', 'path': '/storePoly', 'protocol': 'HTTP/1.1', 'sourceIp': '54.86.50.139', 'userAgent': 'PostmanRuntime/7.29.0'}, 'requestId': 'Rtxsvg5HiYcEJgg=', 'routeKey': 'POST /storePoly', 'stage': '$default', 'time': '06/May/2022:18:04:14 +0000', 'timeEpoch': 1651860254156}, 'isBase64Encoded': False}, None)
+blank = {'queryStringParameters': {'geometry': '', 'coordinates': []}}
+
+# points should pass
+print('points should pass')
+point1 = lambda_handler({'queryStringParameters': {'geometry': 'point', 'coordinates': '[[10, 10]]'}}, None)
+point2 = lambda_handler({'queryStringParameters': {'geometry': 'Point', 'coordinates': '[[10, 10]]'}}, None)
+point9 = lambda_handler({'queryStringParameters': {'geometry': 'Point', 'coordinates': '[[-90, 50]]'}}, None)
+point10 = lambda_handler({'queryStringParameters': {'geometry': 'Point', 'coordinates': '[[0.3424, -12.23123123]]'}}, None)
+point13 = lambda_handler({'queryStringParameters': {'geometry': 'point', 'coordinates': '[10, 10]'}}, None)
+# points should fail:
+print('points should fail')
+point3 = lambda_handler({'queryStringParameters': {'geometry': 'Plompy', 'coordinates': '[[10, 10]]'}}, None)
+point4 = lambda_handler({'queryStringParameters': {'geometry': 'line', 'coordinates': '[[10, 10]]'}}, None)
+point5 = lambda_handler({'queryStringParameters': {'geometry': 'Line', 'coordinates': '[[10, 10]]'}}, None)
+point6 = lambda_handler({'queryStringParameters': {'geometry': 'polygon', 'coordinates': '[[10, 10]]'}}, None)
+point7 = lambda_handler({'queryStringParameters': {'geometry': 'Polygon', 'coordinates': '[[10, 10]]'}}, None)
+point8 = lambda_handler({'queryStringParameters': {'geometry': 'points ', 'coordinates': '[[10, 10]]'}}, None)
+point11 = lambda_handler({'queryStringParameters': {'geometry': 'point', 'coordinates': '[[10, 10], [20,20]]'}}, None)
+point12 = lambda_handler({'queryStringParameters': {'geometry': 'point', 'coordinates': '[[0, 0], [1,0], [1, 1], [0, 1], [0, 0]]'}}, None)
+
+print('##########\n\n##########')
+
+# Lines should pass
+print('lines should pass')
+line1 = lambda_handler({'queryStringParameters': {'geometry': 'line', 'coordinates': '[[0, 10], [20, 50]]'}}, None)
+line2 = lambda_handler({'queryStringParameters': {'geometry': 'Line', 'coordinates': '[[-0.342, 1.9234], [12.04, -50.123], [2, 1]]'}}, None)
+line3 = lambda_handler({'queryStringParameters': {'geometry': 'line', 'coordinates': '[[0, 0], [1, 1], [2,2], [3,3], [4,4]]'}}, None)
+# Lines should fail
+print('lines should fail')
+line4 = lambda_handler({'queryStringParameters': {'geometry': 'lines', 'coordinates': '[[0, 10], [20, 50]]'}}, None)
+line5 = lambda_handler({'queryStringParameters': {'geometry': 'Lime', 'coordinates': '[[0, 10], [20, 50]]'}}, None)
+line6 = lambda_handler({'queryStringParameters': {'geometry': 'point', 'coordinates': '[[0, 10], [20, 50]]'}}, None)
+line7 = lambda_handler({'queryStringParameters': {'geometry': 'Polygon', 'coordinates': '[[0, 10], [20, 50]]'}}, None)
+line8 = lambda_handler({'queryStringParameters': {'geometry': 'line', 'coordinates': '[[0, 10]]'}}, None)
+
+print('##########\n\n##########')
+
+# Polygons should pass
+print('polygons should pass')
+poly1 = lambda_handler({'queryStringParameters': {'geometry': 'polygon', 'coordinates': '[[0, 0], [1,0], [1, 1], [0, 1], [0, 0]]'}}, None)
+poly2 = lambda_handler({'queryStringParameters': {'geometry': 'Polygon', 'coordinates': '[[0, 0], [1,0], [1, 1], [0, 1], [0, 0]]'}}, None)
+poly3 = lambda_handler({'queryStringParameters': {'geometry': 'Polygon', 'coordinates': '[[0, 0], [1,2], [2, 0], [0, 0]]'}}, None)
