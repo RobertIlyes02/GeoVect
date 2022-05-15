@@ -1,0 +1,23 @@
+import json
+import boto3
+
+s3 = boto3.client('s3')
+
+def lambda_handler(event, context):
+    try:
+        print(event)
+        bucket = 'geovect-vectors'
+        params = event['queryStringParameters']
+        if params['key']:
+            key = str(params['key']) + '.json'
+            response = s3.get_object(Bucket=bucket, Key=key)
+            content = response['Body']
+            jsonObject = json.loads(content.read())
+            print(jsonObject)
+            return jsonObject
+        else:
+            print('Error 300: Not correct format')
+            return 'Error 300: Not correct format'
+    except Exception as e:
+        print('Error 301: Could not find Vector')
+        return 'Error 301: Could not find Vectort'
