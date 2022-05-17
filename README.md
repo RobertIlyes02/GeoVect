@@ -52,3 +52,6 @@ Takes either access key to line or polygon, or takes new line or polygon and gen
 **Examples:**
 
 ![image](https://user-images.githubusercontent.com/66189148/167224359-c1067499-1fa4-40af-a396-a559ee080b8c.png)
+## Bounding Box Infrastructure
+![image](https://user-images.githubusercontent.com/66189148/168860274-a50111ed-e9ee-4628-8d1a-636a9e0273c0.png)
+
